@@ -1,0 +1,17 @@
+# Ignore les fichiers de configuration spécifiques à l'IDE
+*.idea/
+*.vscode/
+
+# Ignore les fichiers de build
+build/
+dist/
+
+# Ignore les fichiers log
+*.log
+
+# Ignore les fichiers binaires compilés
+*.exe
+*.dll
+
+# Ignore les fichiers sensibles
+.env
