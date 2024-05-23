@@ -6,3 +6,5 @@ Public Engagement in Food Safety Events in the Context of Climate Change based o
 2.	Natural Language Processing (NLP) and Machine Learning model development/application : Utilize NLP tools and techniques to preprocess and analyze textual data. Perform classification
 
 3.	Evaluate and contextualise results : Visualize findings to present insights on consumer attitudes, prevailing narratives, and the relationship between climate change and food safety concerns. 
+
+For now, you can add a file .env on the root of the project and put EMAIL_ADRESS, PASSWORD, and PHONE_NUMBER associated with your twitter account. As the env file is in the gitignore, it will not be pushed on github and will permit only yourself to run the code correctly.
