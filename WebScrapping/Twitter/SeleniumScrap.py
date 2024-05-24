@@ -54,13 +54,14 @@ def connection(email, password, phone_number):
         wait.until(EC.presence_of_element_located((By.XPATH, '//input[@name="text"]')))
         input_element = browser.find_element(By.XPATH, '//input[@name="text"]')
         input_element.send_keys(phone_number)
+         # Wait until the "Suivant" button is present and then click it again
+        wait.until(EC.presence_of_element_located((By.XPATH, '//button[contains(., "Suivant")]')))
+        next_button = browser.find_element(By.XPATH, '//button[contains(., "Suivant")]')
+        next_button.click()
     except:
         pass
 
-    # Wait until the "Suivant" button is present and then click it again
-    wait.until(EC.presence_of_element_located((By.XPATH, '//button[contains(., "Suivant")]')))
-    next_button = browser.find_element(By.XPATH, '//button[contains(., "Suivant")]')
-    next_button.click()
+   
 
     # Wait until the password input is present and then enter the password
     wait.until(EC.presence_of_element_located((By.XPATH, '//input[@name="password"]')))
@@ -92,12 +93,9 @@ def research(word):
 #---------------------------------------------------------------------------------------------------------------
 
 #--------------------------------------------Get Tweets-----------------------------------------------------
-def get_tweets_and_dates():
+def get_tweets_and_dates(time_proceeding):
     start_time = time.time()
-    
-    # Attendre la présence de l'élément tweetText
-    wait.until(EC.presence_of_element_located((By.XPATH, '//div[@data-testid="tweetText"]')))
-    
+
     # Initialiser la liste pour stocker les tweets
     tweets_data = []
 
@@ -106,49 +104,62 @@ def get_tweets_and_dates():
         last_height = browser.execute_script("return document.body.scrollHeight")
 
         # Sélectionner tous les éléments <div> qui contiennent les tweets
-        tweet_containers = browser.find_elements(By.XPATH, '//div[@data-testid="tweetText"]/ancestor::article')
-        
+        tweet_containers = browser.find_elements(By.XPATH, '//div[@data-testid="cellInnerDiv"]')
+
         for container in tweet_containers:
             try:
-                # Extraire le texte du tweet
-                tweet_text_element = container.find_element(By.XPATH, './/div[@data-testid="tweetText"]//span[@class="css-1jxf684 r-bcqeeo r-1ttztb7 r-qvutc0 r-poiln3"]')
-                tweet_text = tweet_text_element.text
+                # Extraire les éléments de la div tweetText
+                tweet_div = container.find_element(By.XPATH, './/div[@data-testid="tweetText"]')
+                tweet_date = container.find_element(By.XPATH, './/time').get_attribute('datetime')
                 
-                # Extraire la date du tweet
-                time_element = container.find_element(By.XPATH, './/time')
-                datetime_value = time_element.get_attribute('datetime')
                 
-                # Ajouter les données à la liste
-                tweets_data.append({'tweet_text': tweet_text, 'tweet_date': datetime_value})
+                tweet_spans = None
+                while tweet_spans is None:
+                    try:
+                        tweet_spans = tweet_div.find_elements(By.XPATH, './/span')
+                    except StaleElementReferenceException:
+                        continue
+                
+                tweet_text_list = [span.text.strip().replace('\n','') for span in tweet_spans]
+                tweet_text = ' '.join(tweet_text_list)
+                
+                tweets_data.append({'tweet': tweet_text, 'date': tweet_date})
+                
             except NoSuchElementException:
-                # Ignorer les conteneurs qui ne contiennent pas de tweet ou de date
                 continue
+            except StaleElementReferenceException:
+                continue
+      
+      
         
-        # Faire défiler la page vers le bas
+        # Faire défiler la page vers le bas en petites étapes
         browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
-        # Attendre un court délai pour que la page se charge
-        time.sleep(2)
+        # Attendre jusqu'à ce que de nouveaux éléments soient chargés
+        time.sleep(2)  # Attendre un court délai pour que la page se charge
 
         # Récupérer la nouvelle position du scroll après le défilement
         new_height = browser.execute_script("return document.body.scrollHeight")
-
-        # Vérifier si on a atteint la fin de la page
-        if new_height == last_height:
-            break
         
-        # Vérifier si le temps écoulé dépasse 30 secondes
-        elapsed_time = time.time() - start_time
-        if elapsed_time >= 30:
+        
+        # Vérifier si on a atteint la fin de la page ou si le temps imparti est écoulé
+        if new_height == last_height or time.time() - start_time >= time_proceeding:
             break
-    
+
     # Convertir la liste des données en DataFrame
     dataframe = pd.DataFrame(tweets_data)
-    
+
     return dataframe
 
 
+
+#---------------------------------------Save to csv--------------------------------------------------------
+def save_to_csv(dataframe):
+    dataframe.to_csv('tweets_data.csv', index=False)
 #---------------------------------------------------------------------------------------------------------------
+
+
+#-------------------------------------------General function----------------------------------------------------
 
 def process_with_word(word):
     load_dotenv()
@@ -158,9 +169,9 @@ def process_with_word(word):
 
     connection(email, password, phone_number)
     research(word)
-    dataframe=get_tweets_and_dates()
-    print(dataframe)
+    dataframe=get_tweets_and_dates(30)
+    save_to_csv(dataframe)
     browser.quit()
 
-
+#---------------------------------------------------------------------------------------------------------------
 process_with_word("climate change")

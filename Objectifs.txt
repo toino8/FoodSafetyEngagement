@@ -1,0 +1,5 @@
+- Scrapy twitter
+
+- library reddit ??
+
+- vidéo présentation
