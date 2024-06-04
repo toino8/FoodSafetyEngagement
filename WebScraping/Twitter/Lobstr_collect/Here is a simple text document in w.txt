@@ -1,0 +1,21 @@
+Here is a simple text document in which we specify each URL to be passed to the scraper :
+
+- 2024 :
+
+english : https://twitter.com/search?q=climate%20change%20lang%3Aen%20until%3A2024-06-04%20since%3A2024-01-01&src=typed_query&f=top
+
+french : 
+-https://twitter.com/search?q=climate%20change%20lang%3Afr%20until%3A2024-06-04%20since%3A2024-01-01&src=typed_query&f=top
+-https://twitter.com/search?q=changement%20climatique%20lang%3Afr%20until%3A2024-06-04%20since%3A2024-01-01&src=typed_query&f=top
+
+spanish :
+-https://twitter.com/search?q=climate%20change%20lang%3Aes%20until%3A2024-06-04%20since%3A2024-01-01&src=typed_query&f=top
+-https://twitter.com/search?q=cambio%20climático%20lang%3Aes%20until%3A2024-06-04%20since%3A2024-01-01&src=typed_query&f=top
+
+Deutsch :
+-https://twitter.com/search?q=Klimawandel%20lang%3Ade%20until%3A2024-06-04%20since%3A2024-01-01&src=typed_query&f=top
+-https://twitter.com/search?q=Klimawandel%20lang%3Ade%20until%3A2024-06-04%20since%3A2024-01-01&src=typed_query&f=top
+
+
+
+

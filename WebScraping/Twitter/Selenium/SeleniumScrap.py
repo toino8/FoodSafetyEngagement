@@ -12,91 +12,148 @@ from dotenv import load_dotenv
 from translate import Translator
 from selenium.webdriver.common.proxy import Proxy, ProxyType
 from selenium.common.exceptions import TimeoutException 
+from datetime import datetime
+import random
+import requests
+import check_proxy
+import json
 
 
-# proxies_list = [
-#     'http://51.158.204.79:3128',
-# ]
+import json
+
+def remove_proxy_from_list(proxies, failed_proxy):
+    proxies.remove(failed_proxy)
+    with open('valid_proxies.txt', 'w') as f:
+        for proxy in proxies:
+            f.write("%s\n" % proxy)    
+    return proxies
+
+
 
 class TwitterScraper:
-    def __init__(self,email,password,phone_number):
+    def __init__(self,email,password,phone_number,time_proccedding,rotating_ip,ip_search):
         self.email = email
         self.password = password
         self.phone_number = phone_number
-        self.time_proceeding = 150
+        self.time_proceeding =  time_proccedding
         self.browser = None
-        # self.proxies_list = proxies_list
+        self.proxies = None
         self.options = webdriver.ChromeOptions()
-        self.wait = None
-        
-    def start_browser_with_proxy(self):
-        # Prendre le premier proxy de la liste
-        # proxy_address = self.proxies_list.pop(0)  
-        # self.options.add_argument(f'--proxy-server={proxy_address}')
+        self.rotating_ip = rotating_ip
+        self.ip_search = ip_search
+        if self.ip_search:
+            check_proxy.main()
+      
+        # Open the file and read each line
+        with open('valid_proxies.txt', 'r') as f:
+            self.proxies = [line.strip() for line in f]
 
-        # self.browser = webdriver.Chrome(options=self.options)
-        self.browser = webdriver.Chrome()
-        self.browser.maximize_window()
-        self.wait = WebDriverWait(self.browser, 10)
+
+
+    def start_browser_with_proxy(self, timeout=15):
+        # Convertir chaque chaîne en un dictionnaire
+        proxy_info = random.choice(self.proxies)
+       
+
+        self.options.add_argument(f'--proxy-server={proxy_info}')
+        print(f"Using proxy server at {proxy_info}")
+        try:
+            self.browser = webdriver.Chrome(options=self.options)
+            self.browser.maximize_window()
+            self.browser.get("https://x.com/")
+            self.wait = WebDriverWait(self.browser, 10)
+            self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "r-1phboty")))
+        except TimeoutException:
+            print("Le chargement de la page a pris trop de temps. Redémarrage du navigateur.")
+            self.browser.quit()
+            time.sleep(1)
+            self.start_browser_with_proxy(timeout=timeout)
+        except Exception as e:
+            print(f"Erreur lors du chargement de la page : {e}")
+            self.browser.quit()
+            time.sleep(1)
+            self.start_browser_with_proxy(timeout=timeout)
         
     def connection(self):
-        email = self.email
-        password = self.password
-        phone_number = self.phone_number
-        self.start_browser_with_proxy()
-        self.browser.get("https://x.com/")
-        self.browser.maximize_window()
-        self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "r-sdzlij")))
-        accept_cookies = self.browser.find_element(By.CLASS_NAME, 'r-sdzlij')
-        accept_cookies.click()
+        while True:
+            try:
+                email = self.email
+                password = self.password
+                phone_number = self.phone_number
+                if self.rotating_ip:
+                    self.start_browser_with_proxy()
+                else:
+                    self.browser = webdriver.Chrome()
+                    self.browser.maximize_window()
+                    self.browser.get("https://x.com/")
+                    self.wait = WebDriverWait(self.browser, 10)
+                    
+                self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "r-1phboty")))
+                sign_in_button = self.browser.find_element(By.CLASS_NAME, "r-1phboty")
+                sign_in_button.click()
 
-        self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "r-1phboty")))
-        sign_in_button = self.browser.find_element(By.CLASS_NAME, "r-1phboty")
-        sign_in_button.click()
+                self.wait.until(EC.presence_of_element_located((By.XPATH, '//span[contains(text(), "Se connecter")]')))
+                connect = self.browser.find_element(By.XPATH, '//span[contains(text(), "Se connecter")]')
+                connect.click()
 
-        self.wait.until(EC.presence_of_element_located((By.XPATH, '//span[contains(text(), "Se connecter")]')))
-        connect = self.browser.find_element(By.XPATH, '//span[contains(text(), "Se connecter")]')
-        connect.click()
+                self.wait.until(EC.presence_of_element_located((By.NAME, 'text')))
+                email_input = self.browser.find_element(By.NAME, 'text')
+                email_input.send_keys(email)
 
-        self.wait.until(EC.presence_of_element_located((By.NAME, 'text')))
-        email_input = self.browser.find_element(By.NAME, 'text')
-        email_input.send_keys(email)
+                self.wait.until(EC.presence_of_element_located((By.XPATH, '//button[contains(., "Suivant")]')))
+                next_button = self.browser.find_element(By.XPATH, '//button[contains(., "Suivant")]')
+                next_button.click()
 
-        self.wait.until(EC.presence_of_element_located((By.XPATH, '//button[contains(., "Suivant")]')))
-        next_button = self.browser.find_element(By.XPATH, '//button[contains(., "Suivant")]')
-        next_button.click()
+                try:
+                    self.wait.until(EC.presence_of_element_located((By.XPATH, '//input[@name="text"]')))
+                    input_element = self.browser.find_element(By.XPATH, '//input[@name="text"]')
+                    input_element.send_keys(phone_number)
 
-        try:
-            self.wait.until(EC.presence_of_element_located((By.XPATH, '//input[@name="text"]')))
-            input_element = self.browser.find_element(By.XPATH, '//input[@name="text"]')
-            input_element.send_keys(phone_number)
-            self.wait.until(EC.presence_of_element_located((By.XPATH, '//button[contains(., "Suivant")]')))
-            next_button = self.browser.find_element(By.XPATH, '//button[contains(., "Suivant")]')
-            next_button.click()
-        except:
-            pass
+                    self.wait.until(EC.presence_of_element_located((By.XPATH, '//button[contains(., "Suivant")]')))
+                    next_button = self.browser.find_element(By.XPATH, '//button[contains(., "Suivant")]')
+                    next_button.click()
+                except:
+                    pass
 
-        self.wait.until(EC.presence_of_element_located((By.XPATH, '//input[@name="password"]')))
-        password_input = self.browser.find_element(By.XPATH, '//input[@name="password"]')
-        password_input.send_keys(password)
+                self.wait.until(EC.presence_of_element_located((By.XPATH, '//input[@name="password"]')))
+                password_input = self.browser.find_element(By.XPATH, '//input[@name="password"]')
+                password_input.send_keys(password)
 
-        self.wait.until(EC.presence_of_element_located((By.XPATH, '//span[contains(text(), "Se connecter")]')))
-        connect = self.browser.find_element(By.XPATH, '//span[contains(text(), "Se connecter")]')
-        connect.click()
+                self.wait.until(EC.presence_of_element_located((By.XPATH, '//span[contains(text(), "Se connecter")]')))
+                connect = self.browser.find_element(By.XPATH, '//span[contains(text(), "Se connecter")]')
+                connect.click()
 
-        time.sleep(5)
+                time.sleep(5)
+                break
+            except Exception as e:
+                print(f"Erreur lors du processus de connexion : {e}")
+                self.browser.quit()
+                time.sleep(1)
+
+       
+
         
-    def check_and_click_retry_button(self):
+    
+    def request(self, word):
         try:
-            retry_button = self.browser.find_element(By.XPATH, '//button[contains(text(), "Réessayer")]')
-            if retry_button:
-                retry_button.click()
-                print("Clicked the 'Réessayer' button.")
-                time.sleep(2)  # Attendre un peu pour permettre à la page de se recharger
-        except NoSuchElementException:
-            pass
-        
-    def research(self, word, language):
+            self.connection()  # Effectue la connexion et toutes les interactions nécessaires
+            self.research(word, 'en', 2024)  # Effectue la recherche avec le mot clé
+            
+            # Attendre que la page de résultats de recherche soit complètement chargée
+          
+            
+            # Récupérer le contenu HTML de la page
+            page_html = self.browser.page_source
+            print(page_html)  # Affiche le HTML pour le débogage
+            
+            return page_html  # Retourne le contenu HTML
+        except Exception as e:
+            print(f"Erreur lors de la requête : {e}")
+            return None
+
+
+
+    def research(self, word, language, years):
         self.wait.until(EC.presence_of_element_located((By.XPATH, '//input[@data-testid="SearchBox_Search_Input"]')))
         search_input = self.browser.find_element(By.XPATH, '//input[@data-testid="SearchBox_Search_Input"]')
 
@@ -104,9 +161,17 @@ class TwitterScraper:
             ActionChains(self.browser).send_keys(Keys.ARROW_RIGHT).perform()
 
         search_input.send_keys(Keys.CONTROL + "a")
-        search_input.send_keys(word + " lang:" + language)
-        search_input.send_keys(Keys.ENTER)
-        time.sleep(5)
+        
+        if years == 2024:
+            today_date = datetime.today().strftime('%Y-%m-%d')
+            search_query = f"{word} lang:{language} until:{today_date} since:2024-01-01"
+        else:
+            start_date = f"{years}-01-01"
+            end_date = f"{years}-12-31"
+            search_query = f"{word} lang:{language} until:{end_date} since:{start_date}"
+        
+        search_input.send_keys(search_query)
+        search_input.send_keys(Keys.RETURN)
         
     def convert_abbreviations(self,text):
             if 'k' in text.lower():
@@ -118,11 +183,11 @@ class TwitterScraper:
             else:
                 return int(text)
             
+            
+            
     def get_data(self, time_proceeding, language):
         start_time = time.time()
         tweets_data = []
-
-        
 
         while True:
             last_height = self.browser.execute_script("return document.body.scrollHeight")
@@ -164,14 +229,20 @@ class TwitterScraper:
                 break
 
         return pd.DataFrame(tweets_data)
-
     def save_to_csv(self, dataframe, file_path):
-        dataframe.to_csv(file_path, index=False, encoding='utf-8')
         
-    def getComments(self, word, language):
+        # Vérifier si le fichier existe déjà
+        if os.path.exists(file_path):
+            # Ouvrir le fichier en mode append et sans réécrire les en-têtes
+            dataframe.to_csv(file_path, mode='a', index=False, header=False, encoding='utf-8')
+        else:
+            # Créer un nouveau fichier avec les en-têtes
+            dataframe.to_csv(file_path, mode='w', index=False, encoding='utf-8')
+            
+            
+    def getComments(self, word, language,year):
             self.connection()
-            self.research(word + " min_replies:300 min_faves:2000 min_retweets:2500", language)
-            self.check_and_click_retry_button()
+            self.research(word + " min_replies:300 min_faves:2000 min_retweets:2500", language,year)
             tweet_data = []
 
             self.wait.until(EC.presence_of_element_located((By.XPATH, '//div[@data-testid="cellInnerDiv"]')))
@@ -298,29 +369,26 @@ class TwitterScraper:
         
         
         
-    def process_with_word(self, word, languages):
+    def process_with_word(self, word, languages,years):
 
         
         self.connection()
 
         dataframes = []
 
-        self.research(word, 'en')
-        self.check_and_click_retry_button()
-        dataframes.append(self.get_data(self.time_proceeding, 'en'))
+        self.research(word, 'en',years)
+        dataframes.append(self.get_data(self.time_proceeding/len(languages)+1, 'en'))
 
         for language in languages:
             print(f"Processing tweets in {language}...")
             translator = Translator(to_lang=language)
             word_translation = translator.translate(word)
 
-            self.research(word, language)
-            self.check_and_click_retry_button()
-            original_data = self.get_data(self.time_proceeding, language)
+            self.research(word, language,years)
+            original_data = self.get_data(self.time_proceeding/len(languages)+1, language)
 
-            self.research(word_translation, language)
-            self.check_and_click_retry_button()
-            translated_data = self.get_data(self.time_proceeding, language)
+            self.research(word_translation, language,years)
+            translated_data = self.get_data(self.time_proceeding/len(languages)+1, language)
 
             combined_data = pd.concat([original_data, translated_data], ignore_index=True)
             dataframes.append(combined_data)
